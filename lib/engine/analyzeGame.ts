@@ -24,6 +24,21 @@ function emptyCounts(): Record<Classification, number> {
   return counts;
 }
 
+/** Stand-in eval for a position that's skipped because it's still inside known
+ *  opening theory — a neutral, unanalyzed placeholder rather than a real score. */
+function bookPlaceholderEval(fen: string): PositionEval {
+  return {
+    fen,
+    cp: 0,
+    mate: null,
+    bestMoveUci: null,
+    bestMoveSan: null,
+    bestLineSan: [],
+    secondBestCp: null,
+    depth: 0,
+  };
+}
+
 export async function* analyzeGame(
   pgn: string,
   speed: AnalysisSpeed
@@ -39,7 +54,13 @@ export async function* analyzeGame(
   const positionEvals: PositionEval[] = [];
   const totalPositions = parsed.fens.length;
   for (let i = 0; i < totalPositions; i++) {
-    const evalResult = await engine.evaluate(parsed.fens[i], engineOptions);
+    // Positions fully inside known opening theory don't need the engine at all —
+    // the move is classified "book" from the opening lookup alone, so spending
+    // engine time rating it would just be wasted computation. Position
+    // `bookPlies` itself is still evaluated: it's the first out-of-book position,
+    // and doubles as evalBefore for the first move actually worth analyzing.
+    const evalResult =
+      i < bookPlies ? bookPlaceholderEval(parsed.fens[i]) : await engine.evaluate(parsed.fens[i], engineOptions);
     positionEvals.push(evalResult);
     yield { type: "progress", ply: i, total: totalPositions - 1 };
   }

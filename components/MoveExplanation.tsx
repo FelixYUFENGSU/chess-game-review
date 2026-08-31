@@ -39,10 +39,12 @@ export default function MoveExplanation({ analysis, currentPly }: MoveExplanatio
         <span className="text-xs text-neutral-500">— {mover}</span>
       </div>
       <p className="mt-2 text-sm leading-relaxed text-neutral-200">{move.explanation}</p>
-      <p className="mt-2 text-xs text-neutral-500">
-        Eval: {formatEval(move.evalBefore.cp, move.evalBefore.mate)} →{" "}
-        {formatEval(move.evalAfter.cp, move.evalAfter.mate)}
-      </p>
+      {!move.isBook && (
+        <p className="mt-2 text-xs text-neutral-500">
+          Eval: {formatEval(move.evalBefore.cp, move.evalBefore.mate)} →{" "}
+          {formatEval(move.evalAfter.cp, move.evalAfter.mate)}
+        </p>
+      )}
     </div>
   );
 }
