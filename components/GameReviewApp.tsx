@@ -148,28 +148,31 @@ function NavBar({
   onFlip: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-1 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5">
-      <div className="flex gap-1">
-        <NavButton onClick={() => onSelectPly(0)} disabled={currentPly === 0} title="Start">
-          «
+    <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-2">
+      <div className="flex items-center gap-1.5">
+        <NavButton onClick={() => onSelectPly(0)} disabled={currentPly === 0} label="First move">
+          <SkipIcon direction="start" />
         </NavButton>
         <NavButton
           onClick={() => onSelectPly(Math.max(0, currentPly - 1))}
           disabled={currentPly === 0}
-          title="Previous"
+          label="Previous move"
         >
-          ‹
+          <ChevronIcon direction="left" />
         </NavButton>
         <NavButton
           onClick={() => onSelectPly(Math.min(total, currentPly + 1))}
           disabled={currentPly === total}
-          title="Next"
+          label="Next move"
         >
-          ›
+          <ChevronIcon direction="right" />
         </NavButton>
-        <NavButton onClick={() => onSelectPly(total)} disabled={currentPly === total} title="End">
-          »
+        <NavButton onClick={() => onSelectPly(total)} disabled={currentPly === total} label="Last move">
+          <SkipIcon direction="end" />
         </NavButton>
+        <span className="ml-1 hidden text-xs tabular-nums text-neutral-500 sm:inline">
+          {currentPly} / {total}
+        </span>
       </div>
       <button
         type="button"
@@ -185,12 +188,12 @@ function NavBar({
 function NavButton({
   onClick,
   disabled,
-  title,
+  label,
   children,
 }: {
   onClick: () => void;
   disabled?: boolean;
-  title: string;
+  label: string;
   children: React.ReactNode;
 }) {
   return (
@@ -198,11 +201,42 @@ function NavButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={title}
-      className="rounded px-2.5 py-1 text-sm text-neutral-300 hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-30"
+      title={label}
+      aria-label={label}
+      className="flex h-9 w-9 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 text-neutral-200 hover:border-neutral-500 hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700 disabled:hover:bg-neutral-800"
     >
       {children}
     </button>
+  );
+}
+
+function ChevronIcon({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={direction === "left" ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function SkipIcon({ direction }: { direction: "start" | "end" }) {
+  const barX = direction === "start" ? 6 : 17;
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d={direction === "start" ? "M18 6l-8 6 8 6" : "M6 6l8 6-8 6"}
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x={barX} y="5" width="2" height="14" rx="1" fill="currentColor" />
+    </svg>
   );
 }
 
