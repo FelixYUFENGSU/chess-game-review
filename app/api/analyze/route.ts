@@ -5,6 +5,8 @@ import type { AnalysisSpeed, AnalyzeStreamEvent } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Vercel Hobby's ceiling; bump this (Pro allows much more) if deploying there.
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
