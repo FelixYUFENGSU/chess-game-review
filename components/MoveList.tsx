@@ -30,7 +30,10 @@ export default function MoveList({ analysis, currentPly, onSelectPly }: MoveList
   }
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900">
+    <div
+      ref={containerRef}
+      className="max-h-[38vh] overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 lg:max-h-none lg:min-h-0 lg:flex-1"
+    >
       <button
         type="button"
         data-ply={0}

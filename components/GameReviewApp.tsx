@@ -98,8 +98,8 @@ export default function GameReviewApp() {
   if (!analysis) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-3 p-3">
-      <div className="flex items-center justify-between">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-3 lg:h-dvh lg:overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between">
         <h1 className="text-lg font-bold text-neutral-100">Game Review</h1>
         <button
           type="button"
@@ -113,8 +113,12 @@ export default function GameReviewApp() {
         </button>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row">
-        <div className="flex flex-col gap-2 lg:w-[560px] lg:shrink-0">
+      {/* On desktop this row (and everything in it) is locked to the viewport
+          height, with only the move list scrolling internally — otherwise
+          stepping through moves can nudge the whole page's scroll position
+          as list items further down come into view. */}
+      <div className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:flex-row lg:overflow-hidden">
+        <div className="flex shrink-0 flex-col gap-2 lg:w-[560px]">
           <BoardPanel analysis={analysis} currentPly={currentPly} orientation={orientation} />
           <NavBar
             currentPly={currentPly}
@@ -125,10 +129,16 @@ export default function GameReviewApp() {
           <EvalGraph analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <SummaryPanel analysis={analysis} />
-          <KeyMomentsStrip analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
-          <MoveExplanation analysis={analysis} currentPly={currentPly} />
+        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:min-h-0">
+          <div className="shrink-0">
+            <SummaryPanel analysis={analysis} />
+          </div>
+          <div className="shrink-0">
+            <KeyMomentsStrip analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+          </div>
+          <div className="shrink-0">
+            <MoveExplanation analysis={analysis} currentPly={currentPly} />
+          </div>
           <MoveList analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
         </div>
       </div>

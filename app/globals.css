@@ -11,3 +11,10 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
+
+html {
+  /* Always reserve the scrollbar's width so small content-height changes
+     (e.g. stepping through moves) never toggle the scrollbar and shift
+     the whole page horizontally. */
+  scrollbar-gutter: stable;
+}

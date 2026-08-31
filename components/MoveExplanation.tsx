@@ -11,7 +11,7 @@ interface MoveExplanationProps {
 export default function MoveExplanation({ analysis, currentPly }: MoveExplanationProps) {
   if (currentPly === 0) {
     return (
-      <div className="rounded-md border border-neutral-700 bg-neutral-900 p-3 text-sm text-neutral-400">
+      <div className="min-h-[108px] rounded-md border border-neutral-700 bg-neutral-900 p-3 text-sm text-neutral-400">
         Starting position. Step through the moves to see the review.
       </div>
     );
@@ -23,7 +23,7 @@ export default function MoveExplanation({ analysis, currentPly }: MoveExplanatio
   const mover = move.color === "w" ? analysis.white.name : analysis.black.name;
 
   return (
-    <div className="rounded-md border border-neutral-700 bg-neutral-900 p-3">
+    <div className="min-h-[108px] rounded-md border border-neutral-700 bg-neutral-900 p-3">
       <div className="flex items-center gap-2">
         <span
           className="rounded px-2 py-0.5 text-xs font-bold text-neutral-950"
