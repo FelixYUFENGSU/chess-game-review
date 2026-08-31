@@ -9,6 +9,7 @@ import EvalGraph from "@/components/EvalGraph";
 import SummaryPanel from "@/components/SummaryPanel";
 import KeyMomentsStrip from "@/components/KeyMomentsStrip";
 import MoveExplanation from "@/components/MoveExplanation";
+import GameSummaryCard from "@/components/GameSummaryCard";
 import { totalPlies } from "@/lib/gameAnalysisClient";
 
 type Mode = "input" | "analyzing" | "review";
@@ -137,7 +138,11 @@ export default function GameReviewApp() {
             <KeyMomentsStrip analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
           </div>
           <div className="shrink-0">
-            <MoveExplanation analysis={analysis} currentPly={currentPly} />
+            {currentPly === totalPlies(analysis) ? (
+              <GameSummaryCard analysis={analysis} />
+            ) : (
+              <MoveExplanation analysis={analysis} currentPly={currentPly} />
+            )}
           </div>
           <MoveList analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
         </div>
