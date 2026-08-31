@@ -9,6 +9,21 @@ import { mateToCp } from "@/lib/chess/winPercent";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const initEngine = require("stockfish") as (variant?: string) => Promise<StockfishModule>;
 
+// The WASM loader above nulls out the *global* `fetch` the moment it detects
+// it's running under Node (it wants to force its own fs/XHR-based loading
+// path instead). That's a process-wide side effect — it breaks every other
+// fetch() call in this server (e.g. the chess.com/Lichess importers) for the
+// rest of the process's life once any analysis has run. Capture the real
+// fetch now, before that ever happens, so it can be restored.
+const nativeFetch: typeof globalThis.fetch | undefined =
+  typeof globalThis.fetch === "function" ? globalThis.fetch.bind(globalThis) : undefined;
+
+function restoreNativeFetch(): void {
+  if (nativeFetch && typeof globalThis.fetch !== "function") {
+    globalThis.fetch = nativeFetch;
+  }
+}
+
 interface StockfishModule {
   sendCommand(cmd: string): void;
   listener?: (line: string) => void;
@@ -103,6 +118,10 @@ class StockfishEngine {
 
   constructor() {
     this.modulePromise = initEngine("lite-single");
+    // The nulling happens synchronously inside the call above; restore
+    // immediately rather than waiting on the (async, WASM-compile) promise.
+    restoreNativeFetch();
+    this.modulePromise.then(restoreNativeFetch);
   }
 
   private run<T>(task: (engine: StockfishModule) => Promise<T>): Promise<T> {
