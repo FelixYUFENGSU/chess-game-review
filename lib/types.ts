@@ -93,8 +93,6 @@ export interface CoachNote {
   bestMoveSan: string | null;
   /** The engine's main line starting with bestMoveSan (from the position before the move). */
   bestLineSan: string[];
-  /** The evaluation change, in words, e.g. "White went from slightly better (+0.4) to losing (−3.1)". */
-  evalChange: string | null;
 }
 
 export interface AnalyzedMove extends MoveRecord {

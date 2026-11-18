@@ -55,7 +55,6 @@ export function coachMove(input: ExplainInput): CoachNote {
       consequence: null,
       bestMoveSan: null,
       bestLineSan: [],
-      evalChange: null,
     };
   }
 
@@ -67,7 +66,6 @@ export function coachMove(input: ExplainInput): CoachNote {
       consequence: null,
       bestMoveSan: null,
       bestLineSan: [],
-      evalChange: null,
     };
   }
 
@@ -122,7 +120,6 @@ export function coachMove(input: ExplainInput): CoachNote {
     consequence: consequenceParts.length ? consequenceParts.join(" ") : null,
     bestMoveSan: showBest ? best : null,
     bestLineSan: showBest ? input.evalBefore.bestLineSan.slice(0, 6) : [],
-    evalChange: describeEvalChange(input.evalBefore, input.evalAfter),
   };
 }
 
@@ -339,41 +336,10 @@ function describeSwing(input: ExplainInput): string | null {
   return `It's a turning point: the winning chances swing by about ${swing}%.`;
 }
 
-// ------------------------------------------------------------ evaluation
-
-/** Evaluation, in words, from White's perspective, e.g. "Black is winning (−3.1)". */
-export function describeEval(e: Pick<PositionEval, "cp" | "mate">): string {
-  if (e.mate != null) {
-    if (e.mate === 0) return "checkmate";
-    const side = e.mate > 0 ? "White" : "Black";
-    return `${side} has mate in ${Math.abs(e.mate)}`;
-  }
-  const pawns = e.cp / 100;
-  const abs = Math.abs(pawns);
-  const side = pawns > 0 ? "White" : "Black";
-  const num = `${pawns > 0 ? "+" : pawns < 0 ? "−" : ""}${abs.toFixed(1)}`;
-  if (abs < 0.5) return `the position is equal (${num})`;
-  if (abs < 1.5) return `${side} is slightly better (${num})`;
-  if (abs < 4) return `${side} is clearly better (${num})`;
-  return `${side} is winning (${num})`;
-}
-
-function describeEvalChange(before: PositionEval, after: PositionEval): string | null {
-  if (before.depth === 0 && after.depth === 0) return null; // book placeholders, not real evals
-  const b = describeEval(before);
-  const a = describeEval(after);
-  if (b === a) return `${capitalize(a)}.`;
-  return `Before: ${b}. After: ${a}.`;
-}
-
 // ------------------------------------------------------------- helpers
 
 function joinSentences(...parts: (string | null)[]): string {
   return parts.filter(Boolean).join(" ");
-}
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function articleFor(word: string): string {

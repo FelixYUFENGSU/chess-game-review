@@ -104,11 +104,6 @@ function MoveCoach({ move, analysis }: { move: AnalyzedMove; analysis: GameAnaly
           </div>
         )}
 
-        {note.evalChange && (
-          <p className="mt-2 border-t border-[#e8e6e1] pt-2 text-xs leading-relaxed text-[#6f6d6a]">
-            {note.evalChange}
-          </p>
-        )}
       </div>
     </div>
   );
