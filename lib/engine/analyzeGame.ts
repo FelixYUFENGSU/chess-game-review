@@ -1,8 +1,8 @@
 import { Chess, type Square } from "chess.js";
 import { parsePgn } from "@/lib/chess/pgn";
-import { findOpening } from "@/lib/chess/openings";
+import { findOpening, openingByPly } from "@/lib/chess/openings";
 import { classifyMove } from "@/lib/chess/classify";
-import { explainMove } from "@/lib/chess/explain";
+import { coachMove, noteToText } from "@/lib/chess/explain";
 import { moveAccuracy, gameAccuracy, cpToWinPercent } from "@/lib/chess/winPercent";
 import { getSharedEngine, speedToEngineOptions } from "@/lib/engine/stockfish";
 import {
@@ -50,6 +50,7 @@ export async function* analyzeGame(
   const sanList = parsed.moves.map((m) => m.san);
   const openingResult = findOpening(sanList);
   const bookPlies = openingResult?.bookPlies ?? 0;
+  const openingsAtPly = openingByPly(sanList);
 
   const positionEvals: PositionEval[] = [];
   const totalPositions = parsed.fens.length;
@@ -113,11 +114,16 @@ export async function* analyzeGame(
       classifyResult.classification === "miss" ||
       classifyResult.classification === "brilliant";
 
-    const explanation = explainMove({
+    const isOnlyMove = new Chess(move.fenBefore).moves().length === 1;
+    const leftBook = bookPlies > 0 && move.ply === bookPlies + 1;
+    const opening = openingsAtPly[i] ?? null;
+
+    const coach = coachMove({
       san: move.san,
       uci: move.uci,
       color: move.color,
       ply: move.ply,
+      moveNumber: move.moveNumber,
       classification: classifyResult.classification,
       isCapture: move.isCapture,
       isCheck: move.isCheck,
@@ -129,8 +135,11 @@ export async function* analyzeGame(
       evalAfter,
       isBook,
       isCriticalMoment,
-      openingName: isBook ? openingResult?.opening.name : undefined,
+      isOnlyMove,
+      leftBook,
+      opening,
     });
+    const explanation = noteToText(coach);
 
     const analyzed: AnalyzedMove = {
       ...move,
@@ -143,7 +152,11 @@ export async function* analyzeGame(
       winPercentLossMoverPov: classifyResult.winPercentLossMoverPov,
       isBook,
       isCriticalMoment,
+      isOnlyMove,
+      opening,
+      leftBook,
       explanation,
+      coach,
     };
 
     analyzedMoves.push(analyzed);

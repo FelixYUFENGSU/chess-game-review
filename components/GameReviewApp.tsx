@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { AnalysisSpeed, AnalyzeStreamEvent, GameAnalysis } from "@/lib/types";
+import { Chessboard } from "react-chessboard";
 import ImportPanel from "@/components/ImportPanel";
 import BoardPanel from "@/components/BoardPanel";
 import MoveList from "@/components/MoveList";
 import EvalGraph from "@/components/EvalGraph";
-import SummaryPanel from "@/components/SummaryPanel";
-import KeyMomentsStrip from "@/components/KeyMomentsStrip";
-import MoveExplanation from "@/components/MoveExplanation";
-import GameSummaryCard from "@/components/GameSummaryCard";
+import CoachPanel from "@/components/CoachPanel";
 import { totalPlies } from "@/lib/gameAnalysisClient";
 
 type Mode = "input" | "analyzing" | "review";
@@ -71,9 +69,15 @@ export default function GameReviewApp() {
   useEffect(() => {
     if (mode !== "review") return;
     function handleKey(e: KeyboardEvent) {
+      const last = analysis ? totalPlies(analysis) : 0;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (e.key === "ArrowLeft") setCurrentPly((p) => Math.max(0, p - 1));
-      else if (e.key === "ArrowRight")
-        setCurrentPly((p) => Math.min(analysis ? totalPlies(analysis) : 0, p + 1));
+      else if (e.key === "ArrowRight") setCurrentPly((p) => Math.min(last, p + 1));
+      else if (e.key === "Home" || e.key === "ArrowUp") setCurrentPly(0);
+      else if (e.key === "End" || e.key === "ArrowDown") setCurrentPly(last);
+      else if (e.key.toLowerCase() === "f") setOrientation((o) => (o === "white" ? "black" : "white"));
+      else return;
+      e.preventDefault();
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
@@ -81,72 +85,87 @@ export default function GameReviewApp() {
 
   if (mode === "input" || mode === "analyzing") {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center px-4 py-16">
-        <h1 className="mb-1 text-2xl font-bold text-neutral-100">Game Review</h1>
-        <p className="mb-8 text-sm text-neutral-400">
-          Local, Stockfish-powered move-by-move game analysis.
-        </p>
-        {mode === "analyzing" ? (
-          <AnalyzingState progress={progress} onCancel={() => setMode("input")} />
-        ) : (
-          <ImportPanel onSubmit={runAnalysis} />
-        )}
-        {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
+          <div className="hidden lg:block">
+            <HeroBoard />
+          </div>
+          <div className="rounded-xl bg-cg-panel p-6 shadow-2xl">
+            <div className="mb-6 flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-cg-green text-2xl text-white">
+                ★
+              </span>
+              <div>
+                <h1 className="text-2xl font-extrabold text-cg-text">Game Review</h1>
+                <p className="text-sm text-cg-muted">See what went right, what went wrong, and why.</p>
+              </div>
+            </div>
+            {mode === "analyzing" ? (
+              <AnalyzingState progress={progress} onCancel={() => setMode("input")} />
+            ) : (
+              <ImportPanel onSubmit={runAnalysis} />
+            )}
+            {error && <p className="mt-4 rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</p>}
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!analysis) return null;
 
+  const total = totalPlies(analysis);
+
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 p-3 lg:h-dvh lg:overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between">
-        <h1 className="text-lg font-bold text-neutral-100">Game Review</h1>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("input");
-            setAnalysis(null);
-          }}
-          className="text-sm text-neutral-400 underline hover:text-neutral-200"
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 p-3 lg:h-dvh lg:flex-row lg:items-stretch lg:justify-center lg:overflow-hidden lg:p-5">
+      <div className="mx-auto w-full max-w-[min(640px,calc(100dvh-7rem))] shrink-0 lg:mx-0 lg:w-[min(640px,calc(100dvh-7rem))]">
+        <BoardPanel analysis={analysis} currentPly={currentPly} orientation={orientation} />
+      </div>
+
+      <aside className="flex min-h-[520px] w-full flex-col overflow-hidden rounded-lg bg-cg-panel shadow-xl lg:min-h-0 lg:w-[420px]">
+        <header className="flex shrink-0 items-center gap-2 border-b border-black/30 px-4 py-3">
+          <span className="text-lg text-cg-green">★</span>
+          <h1 className="text-base font-bold text-cg-text">Game Review</h1>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("input");
+              setAnalysis(null);
+            }}
+            className="ml-auto rounded-md px-2 py-1 text-xs font-semibold text-cg-muted hover:bg-white/5 hover:text-white"
+          >
+            New game
+          </button>
+        </header>
+
+        {/* Before the first move the panel is an overview of the whole game;
+            once the review starts it becomes coach + graph + move list. */}
+        <div
+          className={`panel-scroll overflow-y-auto px-4 pt-3 pb-2 ${
+            currentPly === 0 ? "flex-1" : "shrink-0 lg:max-h-[58%]"
+          }`}
         >
-          Review another game
-        </button>
-      </div>
-
-      {/* On desktop this row (and everything in it) is locked to the viewport
-          height, with only the move list scrolling internally — otherwise
-          stepping through moves can nudge the whole page's scroll position
-          as list items further down come into view. */}
-      <div className="flex flex-1 flex-col gap-3 lg:min-h-0 lg:flex-row lg:overflow-hidden">
-        <div className="flex shrink-0 flex-col gap-2 lg:w-[560px]">
-          <BoardPanel analysis={analysis} currentPly={currentPly} orientation={orientation} />
-          <NavBar
-            currentPly={currentPly}
-            total={totalPlies(analysis)}
-            onSelectPly={setCurrentPly}
-            onFlip={() => setOrientation((o) => (o === "white" ? "black" : "white"))}
-          />
-          <EvalGraph analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+          <CoachPanel analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3 lg:min-h-0">
-          <div className="shrink-0">
-            <SummaryPanel analysis={analysis} />
-          </div>
-          <div className="shrink-0">
-            <KeyMomentsStrip analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
-          </div>
-          <div className="shrink-0">
-            {currentPly === totalPlies(analysis) ? (
-              <GameSummaryCard analysis={analysis} />
-            ) : (
-              <MoveExplanation analysis={analysis} currentPly={currentPly} />
-            )}
-          </div>
-          <MoveList analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
-        </div>
-      </div>
+        {currentPly > 0 && (
+          <>
+            <div className="shrink-0 px-4 pb-2">
+              <EvalGraph analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+            </div>
+            <div className="flex min-h-[160px] flex-1 flex-col border-t border-black/30 lg:min-h-0">
+              <MoveList analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+            </div>
+          </>
+        )}
+
+        <NavBar
+          currentPly={currentPly}
+          total={total}
+          onSelectPly={setCurrentPly}
+          onFlip={() => setOrientation((o) => (o === "white" ? "black" : "white"))}
+        />
+      </aside>
     </div>
   );
 }
@@ -163,39 +182,31 @@ function NavBar({
   onFlip: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md border border-neutral-700 bg-neutral-900 px-2 py-2">
-      <div className="flex items-center gap-1.5">
-        <NavButton onClick={() => onSelectPly(0)} disabled={currentPly === 0} label="First move">
-          <SkipIcon direction="start" />
-        </NavButton>
-        <NavButton
-          onClick={() => onSelectPly(Math.max(0, currentPly - 1))}
-          disabled={currentPly === 0}
-          label="Previous move"
-        >
-          <ChevronIcon direction="left" />
-        </NavButton>
-        <NavButton
-          onClick={() => onSelectPly(Math.min(total, currentPly + 1))}
-          disabled={currentPly === total}
-          label="Next move"
-        >
-          <ChevronIcon direction="right" />
-        </NavButton>
-        <NavButton onClick={() => onSelectPly(total)} disabled={currentPly === total} label="Last move">
-          <SkipIcon direction="end" />
-        </NavButton>
-        <span className="ml-1 hidden text-xs tabular-nums text-neutral-500 sm:inline">
-          {currentPly} / {total}
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={onFlip}
-        className="rounded px-2 py-1 text-xs text-neutral-400 hover:bg-neutral-800 hover:text-neutral-200"
+    <div className="flex shrink-0 items-center gap-1.5 border-t border-black/30 bg-cg-panel2 p-2">
+      <NavButton onClick={onFlip} label="Flip board (F)" small>
+        <FlipIcon />
+      </NavButton>
+      <NavButton onClick={() => onSelectPly(0)} disabled={currentPly === 0} label="Start (Home)">
+        <SkipIcon direction="start" />
+      </NavButton>
+      <NavButton
+        onClick={() => onSelectPly(Math.max(0, currentPly - 1))}
+        disabled={currentPly === 0}
+        label="Previous move (←)"
       >
-        Flip board
-      </button>
+        <ChevronIcon direction="left" />
+      </NavButton>
+      <NavButton
+        onClick={() => onSelectPly(Math.min(total, currentPly + 1))}
+        disabled={currentPly === total}
+        label="Next move (→)"
+        primary
+      >
+        <ChevronIcon direction="right" />
+      </NavButton>
+      <NavButton onClick={() => onSelectPly(total)} disabled={currentPly === total} label="End (End)">
+        <SkipIcon direction="end" />
+      </NavButton>
     </div>
   );
 }
@@ -204,11 +215,15 @@ function NavButton({
   onClick,
   disabled,
   label,
+  primary,
+  small,
   children,
 }: {
   onClick: () => void;
   disabled?: boolean;
   label: string;
+  primary?: boolean;
+  small?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -218,10 +233,30 @@ function NavButton({
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="flex h-9 w-9 items-center justify-center rounded-md border border-neutral-700 bg-neutral-800 text-neutral-200 hover:border-neutral-500 hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:border-neutral-700 disabled:hover:bg-neutral-800"
+      className={`flex h-11 items-center justify-center rounded-md text-white transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+        small ? "w-11" : "flex-1"
+      } ${
+        primary
+          ? "bg-cg-green shadow-[0_3px_0_0_var(--color-cg-green-shadow)] hover:bg-cg-green-hover disabled:hover:bg-cg-green"
+          : "bg-cg-panel3 hover:bg-[#4a4844] disabled:hover:bg-cg-panel3"
+      }`}
     >
       {children}
     </button>
+  );
+}
+
+function FlipIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7 4v13m0 0-3-3m3 3 3-3M17 20V7m0 0-3 3m3-3 3 3"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -264,23 +299,45 @@ function AnalyzingState({
 }) {
   const pct = progress && progress.total > 0 ? (progress.ply / progress.total) * 100 : 0;
   return (
-    <div className="w-full max-w-md text-center">
-      <p className="mb-3 text-sm text-neutral-300">
-        Analyzing{progress ? ` — ${progress.ply}/${progress.total} positions` : "…"}
+    <div className="py-4 text-center">
+      <p className="mb-1 text-base font-semibold text-cg-text">Reviewing your game…</p>
+      <p className="mb-4 text-sm text-cg-muted">
+        {progress ? `Position ${progress.ply} of ${progress.total}` : "Starting the engine"}
       </p>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+      <div className="h-3 w-full overflow-hidden rounded-full bg-cg-panel2">
         <div
-          className="h-full bg-neutral-100 transition-[width] duration-200"
-          style={{ width: `${pct}%` }}
+          className="h-full rounded-full bg-cg-green transition-[width] duration-200"
+          style={{ width: `${Math.max(4, pct)}%` }}
         />
       </div>
       <button
         type="button"
         onClick={onCancel}
-        className="mt-4 text-xs text-neutral-500 underline hover:text-neutral-300"
+        className="mt-5 text-sm font-semibold text-cg-faint hover:text-cg-text"
       >
         Cancel
       </button>
+    </div>
+  );
+}
+
+/** Decorative board for the landing page. */
+function HeroBoard() {
+  return (
+    <div className="mx-auto aspect-square w-full max-w-[520px] overflow-hidden rounded-md shadow-2xl">
+      <Chessboard
+        options={{
+          id: "hero-board",
+          position: "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4",
+          allowDragging: false,
+          allowDrawingArrows: false,
+          showNotation: false,
+          arrows: [{ startSquare: "h5", endSquare: "f7", color: "rgba(150, 190, 70, 0.85)" }],
+          squareStyles: { f7: { backgroundColor: "rgba(255, 255, 51, 0.42)" } },
+          lightSquareStyle: { backgroundColor: "#ebecd0" },
+          darkSquareStyle: { backgroundColor: "#739552" },
+        }}
+      />
     </div>
   );
 }

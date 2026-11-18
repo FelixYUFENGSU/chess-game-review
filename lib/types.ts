@@ -81,6 +81,22 @@ export interface MoveRecord {
   capturedPiece: PieceSymbol | null;
 }
 
+/** Structured, plain-English coaching for one move (what the review panel shows). */
+export interface CoachNote {
+  /** e.g. "Nxe5 is a blunder" */
+  headline: string;
+  /** What the move does / the idea behind it. */
+  idea: string | null;
+  /** What it allows, or why it matters (tactics, swings, leaving theory). */
+  consequence: string | null;
+  /** The engine's preferred move when the played move wasn't it, e.g. "Bxf7+". */
+  bestMoveSan: string | null;
+  /** The engine's main line starting with bestMoveSan (from the position before the move). */
+  bestLineSan: string[];
+  /** The evaluation change, in words, e.g. "White went from slightly better (+0.4) to losing (−3.1)". */
+  evalChange: string | null;
+}
+
 export interface AnalyzedMove extends MoveRecord {
   evalBefore: PositionEval;
   evalAfter: PositionEval;
@@ -91,7 +107,14 @@ export interface AnalyzedMove extends MoveRecord {
   winPercentLossMoverPov: number;
   isBook: boolean;
   isCriticalMoment: boolean;
+  /** Only legal move in the position. */
+  isOnlyMove: boolean;
+  /** The opening this game is in as of this move (most specific known line so far). */
+  opening: OpeningInfo | null;
+  /** True for the first move that leaves known opening theory. */
+  leftBook: boolean;
   explanation: string;
+  coach: CoachNote;
 }
 
 export interface PlayerSummary {
