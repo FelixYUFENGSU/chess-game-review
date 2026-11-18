@@ -117,7 +117,10 @@ class StockfishEngine {
   private initialized = false;
 
   constructor() {
-    this.modulePromise = initEngine("lite-single");
+    // Full-strength Stockfish 18 (large NNUE network, single-threaded). Slower per
+    // node than the "lite" build but its evaluations are far more accurate, which is
+    // what move classification depends on.
+    this.modulePromise = initEngine("single");
     // The nulling happens synchronously inside the call above; restore
     // immediately rather than waiting on the (async, WASM-compile) promise.
     restoreNativeFetch();
@@ -139,6 +142,7 @@ class StockfishEngine {
       await sendAndWaitFor(engine, "uci", "uciok");
       engine.sendCommand("setoption name MultiPV value 2");
       engine.sendCommand("setoption name Threads value 1");
+      engine.sendCommand("setoption name Hash value 128");
       await sendAndWaitFor(engine, "isready", "readyok");
     });
     this.initialized = true;
@@ -209,7 +213,7 @@ function buildResult(
   }
 
   const { cp, mate } = toWhitePovCp(line1, stm);
-  const bestLineSan = uciToSan(fen, line1.pv ?? [bestUci], 6);
+  const bestLineSan = uciToSan(fen, line1.pv ?? [bestUci], 10);
   let secondBestCp: number | null = null;
   if (line2 && (line2.cp != null || line2.mate != null)) {
     secondBestCp = toWhitePovCp(line2, stm).cp;
@@ -246,7 +250,13 @@ export function getSharedEngine(): StockfishEngine {
 
 export function speedToEngineOptions(speed: "quick" | "deep"): EngineOptions {
   if (speed === "deep") {
-    return { speed, depth: 20, movetimeMs: 3000 };
+    return { speed, depth: 24, movetimeMs: 3000 };
   }
-  return { speed, depth: 14, movetimeMs: 700 };
+  return { speed, depth: 18, movetimeMs: 1200 };
+}
+
+/** Total engine-time budget per game, so long games still finish inside the
+ *  serverless time limit (per-position time shrinks for long games). */
+export function gameTimeBudgetMs(speed: "quick" | "deep"): number {
+  return speed === "deep" ? 240_000 : 120_000;
 }

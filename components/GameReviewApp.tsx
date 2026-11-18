@@ -8,7 +8,7 @@ import BoardPanel from "@/components/BoardPanel";
 import MoveList from "@/components/MoveList";
 import EvalGraph from "@/components/EvalGraph";
 import CoachPanel from "@/components/CoachPanel";
-import { totalPlies } from "@/lib/gameAnalysisClient";
+import { bestLineFor, lineSteps, totalPlies } from "@/lib/gameAnalysisClient";
 
 type Mode = "input" | "analyzing" | "review";
 
@@ -19,6 +19,14 @@ export default function GameReviewApp() {
   const [error, setError] = useState<string | null>(null);
   const [currentPly, setCurrentPly] = useState(0);
   const [orientation, setOrientation] = useState<"white" | "black">("white");
+  // When set, the board shows the engine's best line from before move `currentPly`,
+  // `lineIndex` moves deep (0 = after the first move of the line).
+  const [lineIndex, setLineIndex] = useState<number | null>(null);
+
+  const goToPly = useCallback((ply: number | ((p: number) => number)) => {
+    setLineIndex(null);
+    setCurrentPly(ply);
+  }, []);
 
   const runAnalysis = useCallback(async (pgn: string, speed: AnalysisSpeed) => {
     setMode("analyzing");
@@ -54,6 +62,7 @@ export default function GameReviewApp() {
           } else if (event.type === "done") {
             setAnalysis(event.analysis);
             setCurrentPly(0);
+            setLineIndex(null);
             setMode("review");
           } else if (event.type === "error") {
             throw new Error(event.message);
@@ -71,17 +80,27 @@ export default function GameReviewApp() {
     function handleKey(e: KeyboardEvent) {
       const last = analysis ? totalPlies(analysis) : 0;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === "ArrowLeft") setCurrentPly((p) => Math.max(0, p - 1));
-      else if (e.key === "ArrowRight") setCurrentPly((p) => Math.min(last, p + 1));
-      else if (e.key === "Home" || e.key === "ArrowUp") setCurrentPly(0);
-      else if (e.key === "End" || e.key === "ArrowDown") setCurrentPly(last);
+      if (lineIndex !== null && analysis) {
+        // Stepping through an engine line: arrows move within the line, Esc returns to the game.
+        const lineLength = bestLineFor(analysis.moves[currentPly - 1]).length;
+        if (e.key === "ArrowLeft") setLineIndex(lineIndex === 0 ? null : lineIndex - 1);
+        else if (e.key === "ArrowRight") setLineIndex(Math.min(lineLength - 1, lineIndex + 1));
+        else if (e.key === "Escape") setLineIndex(null);
+        else return;
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "ArrowLeft") goToPly((p) => Math.max(0, p - 1));
+      else if (e.key === "ArrowRight") goToPly((p) => Math.min(last, p + 1));
+      else if (e.key === "Home" || e.key === "ArrowUp") goToPly(0);
+      else if (e.key === "End" || e.key === "ArrowDown") goToPly(last);
       else if (e.key.toLowerCase() === "f") setOrientation((o) => (o === "white" ? "black" : "white"));
       else return;
       e.preventDefault();
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [mode, analysis]);
+  }, [mode, analysis, lineIndex, currentPly, goToPly]);
 
   if (mode === "input" || mode === "analyzing") {
     return (
@@ -115,11 +134,24 @@ export default function GameReviewApp() {
   if (!analysis) return null;
 
   const total = totalPlies(analysis);
+  const currentMove = currentPly > 0 ? analysis.moves[currentPly - 1] : undefined;
+  const steps =
+    lineIndex !== null && currentMove ? lineSteps(currentMove.fenBefore, bestLineFor(currentMove)) : [];
+  const preview =
+    lineIndex !== null && steps[lineIndex]
+      ? {
+          fen: steps[lineIndex].fen,
+          uci: steps[lineIndex].uci,
+          index: lineIndex,
+          total: steps.length,
+          onExit: () => setLineIndex(null),
+        }
+      : undefined;
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 p-3 lg:h-dvh lg:flex-row lg:items-stretch lg:justify-center lg:overflow-hidden lg:p-5">
       <div className="mx-auto w-full max-w-[min(640px,calc(100dvh-7rem))] shrink-0 lg:mx-0 lg:w-[min(640px,calc(100dvh-7rem))]">
-        <BoardPanel analysis={analysis} currentPly={currentPly} orientation={orientation} />
+        <BoardPanel analysis={analysis} currentPly={currentPly} orientation={orientation} preview={preview} />
       </div>
 
       <aside className="flex min-h-[520px] w-full flex-col overflow-hidden rounded-lg bg-cg-panel shadow-xl lg:min-h-0 lg:w-[420px]">
@@ -145,16 +177,22 @@ export default function GameReviewApp() {
             currentPly === 0 ? "flex-1" : "shrink-0 lg:max-h-[58%]"
           }`}
         >
-          <CoachPanel analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+          <CoachPanel
+            analysis={analysis}
+            currentPly={currentPly}
+            onSelectPly={goToPly}
+            lineIndex={lineIndex}
+            onSelectLine={setLineIndex}
+          />
         </div>
 
         {currentPly > 0 && (
           <>
             <div className="shrink-0 px-4 pb-2">
-              <EvalGraph analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+              <EvalGraph analysis={analysis} currentPly={currentPly} onSelectPly={goToPly} />
             </div>
             <div className="flex min-h-[160px] flex-1 flex-col border-t border-black/30 lg:min-h-0">
-              <MoveList analysis={analysis} currentPly={currentPly} onSelectPly={setCurrentPly} />
+              <MoveList analysis={analysis} currentPly={currentPly} onSelectPly={goToPly} />
             </div>
           </>
         )}
@@ -162,7 +200,7 @@ export default function GameReviewApp() {
         <NavBar
           currentPly={currentPly}
           total={total}
-          onSelectPly={setCurrentPly}
+          onSelectPly={goToPly}
           onFlip={() => setOrientation((o) => (o === "white" ? "black" : "white"))}
         />
       </aside>

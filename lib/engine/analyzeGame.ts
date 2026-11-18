@@ -4,7 +4,7 @@ import { findOpening, openingByPly } from "@/lib/chess/openings";
 import { classifyMove } from "@/lib/chess/classify";
 import { coachMove, noteToText } from "@/lib/chess/explain";
 import { moveAccuracy, gameAccuracy, cpToWinPercent } from "@/lib/chess/winPercent";
-import { getSharedEngine, speedToEngineOptions } from "@/lib/engine/stockfish";
+import { gameTimeBudgetMs, getSharedEngine, speedToEngineOptions } from "@/lib/engine/stockfish";
 import {
   CLASSIFICATIONS,
   type AnalysisSpeed,
@@ -54,6 +54,13 @@ export async function* analyzeGame(
 
   const positionEvals: PositionEval[] = [];
   const totalPositions = parsed.fens.length;
+  // Spread a fixed time budget over the positions that actually need the engine.
+  const toAnalyze = Math.max(1, totalPositions - bookPlies);
+  const perPositionMs = Math.min(
+    engineOptions.movetimeMs,
+    Math.floor(gameTimeBudgetMs(speed) / toAnalyze)
+  );
+  const searchOptions = { ...engineOptions, movetimeMs: Math.max(250, perPositionMs) };
   for (let i = 0; i < totalPositions; i++) {
     // Positions fully inside known opening theory don't need the engine at all —
     // the move is classified "book" from the opening lookup alone, so spending
@@ -61,7 +68,7 @@ export async function* analyzeGame(
     // `bookPlies` itself is still evaluated: it's the first out-of-book position,
     // and doubles as evalBefore for the first move actually worth analyzing.
     const evalResult =
-      i < bookPlies ? bookPlaceholderEval(parsed.fens[i]) : await engine.evaluate(parsed.fens[i], engineOptions);
+      i < bookPlies ? bookPlaceholderEval(parsed.fens[i]) : await engine.evaluate(parsed.fens[i], searchOptions);
     positionEvals.push(evalResult);
     yield { type: "progress", ply: i, total: totalPositions - 1 };
   }
@@ -102,7 +109,9 @@ export async function* analyzeGame(
       classifyResult.winPercentBeforeMoverPov,
       classifyResult.winPercentAfterMoverPov
     );
-    perMoveAcc[move.color].push(accuracy);
+    // Book moves are never engine-checked (placeholder evals), so counting them
+    // as 100% would inflate accuracy. Only engine-judged moves count.
+    if (!isBook) perMoveAcc[move.color].push(accuracy);
     counts[move.color][classifyResult.classification]++;
 
     const whiteWinBefore = cpToWinPercent(evalBefore.cp, "w");

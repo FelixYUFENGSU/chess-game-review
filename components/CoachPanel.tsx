@@ -1,21 +1,31 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { AnalyzedMove, Classification, GameAnalysis } from "@/lib/types";
 import { CLASSIFICATION_INFO } from "@/lib/types";
 import { generateGameSummary } from "@/lib/chess/gameSummary";
 import ClassificationIcon from "@/components/ClassificationIcon";
 import EvalGraph from "@/components/EvalGraph";
+import { bestLineFor } from "@/lib/gameAnalysisClient";
 
 interface CoachPanelProps {
   analysis: GameAnalysis;
   currentPly: number;
   onSelectPly: (ply: number) => void;
+  /** Which move of the engine's best line is on the board (null = the game position). */
+  lineIndex: number | null;
+  onSelectLine: (index: number | null) => void;
 }
 
 /** The coach area of the review: overview before the first move, a speech-bubble
  *  breakdown for each move, and a wrap-up after the last one. */
-export default function CoachPanel({ analysis, currentPly, onSelectPly }: CoachPanelProps) {
+export default function CoachPanel({
+  analysis,
+  currentPly,
+  onSelectPly,
+  lineIndex,
+  onSelectLine,
+}: CoachPanelProps) {
   const total = analysis.moves.length;
   if (currentPly === 0) return <Overview analysis={analysis} onSelectPly={onSelectPly} />;
   const move = analysis.moves[currentPly - 1];
@@ -23,7 +33,7 @@ export default function CoachPanel({ analysis, currentPly, onSelectPly }: CoachP
   return (
     <div className="space-y-2">
       <OpeningRow analysis={analysis} move={move} />
-      <MoveCoach key={move.ply} move={move} analysis={analysis} />
+      <MoveCoach move={move} analysis={analysis} lineIndex={lineIndex} onSelectLine={onSelectLine} />
       {currentPly === total && <WrapUp analysis={analysis} />}
     </div>
   );
@@ -57,8 +67,18 @@ function OpeningRow({ analysis, move }: { analysis: GameAnalysis; move?: Analyze
 
 // --------------------------------------------------------------- per move
 
-function MoveCoach({ move, analysis }: { move: AnalyzedMove; analysis: GameAnalysis }) {
-  const [showLine, setShowLine] = useState(false);
+function MoveCoach({
+  move,
+  analysis,
+  lineIndex,
+  onSelectLine,
+}: {
+  move: AnalyzedMove;
+  analysis: GameAnalysis;
+  lineIndex: number | null;
+  onSelectLine: (index: number | null) => void;
+}) {
+  const line = bestLineFor(move);
   const info = CLASSIFICATION_INFO[move.classification];
   const note = move.coach;
   const player = move.color === "w" ? analysis.white.name : analysis.black.name;
@@ -83,44 +103,76 @@ function MoveCoach({ move, analysis }: { move: AnalyzedMove; analysis: GameAnaly
         {note.idea && <p className="mt-1.5 text-[14px] leading-relaxed">{note.idea}</p>}
         {note.consequence && <p className="mt-1.5 text-[14px] leading-relaxed">{note.consequence}</p>}
 
-        {note.bestMoveSan && (
+        {line.length > 0 && (
           <div className="mt-2.5 rounded-md bg-[#f1f1ee] p-2">
             <div className="flex items-center gap-2 text-[14px]">
               <ClassificationIcon classification="best" size={18} />
-              <span>
-                <span className="font-bold">{note.bestMoveSan}</span> was best
-              </span>
-              {note.bestLineSan.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => setShowLine((s) => !s)}
-                  className="ml-auto text-xs font-semibold text-[#5d8a32] hover:underline"
-                >
-                  {showLine ? "Hide line" : "Show line"}
-                </button>
+              {note.bestMoveSan ? (
+                <span>
+                  <span className="font-bold">{note.bestMoveSan}</span> was best
+                </span>
+              ) : (
+                <span className="font-semibold">Best line from here</span>
               )}
+              <button
+                type="button"
+                onClick={() => onSelectLine(lineIndex === null ? 0 : null)}
+                className={`ml-auto rounded-md px-2 py-1 text-xs font-bold transition-colors ${
+                  lineIndex === null
+                    ? "bg-cg-green text-white hover:bg-cg-green-hover"
+                    : "bg-[#dcdad5] text-[#4b4847] hover:bg-[#cfccc6]"
+                }`}
+              >
+                {lineIndex === null ? "▶ Show on board" : "Back to game"}
+              </button>
             </div>
-            {showLine && <BestLine move={move} />}
+            <BestLine move={move} line={line} active={lineIndex} onSelect={onSelectLine} />
           </div>
         )}
-
       </div>
     </div>
   );
 }
 
-/** The engine's main line, numbered from the position before the move. */
-function BestLine({ move }: { move: AnalyzedMove }) {
-  const parts: string[] = [];
-  let n = move.moveNumber;
-  let side = move.color;
-  move.coach.bestLineSan.forEach((san, i) => {
-    if (side === "w") parts.push(`${n}. ${san}`);
-    else parts.push(i === 0 ? `${n}... ${san}` : san);
-    if (side === "b") n++;
-    side = side === "w" ? "b" : "w";
+/** The engine's best line from the position before the move, numbered, with each
+ *  move clickable to show that position on the board. */
+function BestLine({
+  move,
+  line,
+  active,
+  onSelect,
+}: {
+  move: AnalyzedMove;
+  line: string[];
+  active: number | null;
+  onSelect: (index: number) => void;
+}) {
+  // Move i of the line is played by White when it lands on White's turn.
+  const offset = move.color === "w" ? 0 : 1;
+  const items = line.map((san, i) => {
+    const whiteToMove = (i + offset) % 2 === 0;
+    const n = move.moveNumber + Math.floor((i + offset) / 2);
+    const prefix = whiteToMove ? `${n}.` : i === 0 ? `${n}...` : "";
+    return { san, prefix, i };
   });
-  return <p className="mt-1.5 font-mono text-xs leading-relaxed text-[#4b4847]">{parts.join(" ")}</p>;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-0.5 gap-y-1 text-[13px] leading-none">
+      {items.map(({ san, prefix, i }) => (
+        <span key={i} className="flex items-center">
+          {prefix && <span className="mr-0.5 ml-1 text-[#8b8987]">{prefix}</span>}
+          <button
+            type="button"
+            onClick={() => onSelect(i)}
+            className={`rounded px-1.5 py-1 font-semibold transition-colors ${
+              active === i ? "bg-[#4a7fb5] text-white" : "text-[#312e2b] hover:bg-[#dcdad5]"
+            }`}
+          >
+            {san}
+          </button>
+        </span>
+      ))}
+    </div>
+  );
 }
 
 // ----------------------------------------------------------------- wrap-up

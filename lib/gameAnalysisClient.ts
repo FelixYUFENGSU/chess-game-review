@@ -1,4 +1,5 @@
-import type { GameAnalysis } from "@/lib/types";
+import { Chess } from "chess.js";
+import type { AnalyzedMove, GameAnalysis } from "@/lib/types";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -11,4 +12,31 @@ export function fenAtPly(analysis: GameAnalysis, ply: number): string {
 
 export function totalPlies(analysis: GameAnalysis): number {
   return analysis.moves.length;
+}
+
+export interface LineStep {
+  san: string;
+  uci: string;
+  fen: string;
+}
+
+/** Plays an engine line (SAN moves) from `fen` and returns the position after each move. */
+export function lineSteps(fen: string, sans: string[]): LineStep[] {
+  const chess = new Chess(fen);
+  const steps: LineStep[] = [];
+  for (const san of sans) {
+    try {
+      const m = chess.move(san);
+      steps.push({ san: m.san, uci: m.from + m.to + (m.promotion ?? ""), fen: chess.fen() });
+    } catch {
+      break;
+    }
+  }
+  return steps;
+}
+
+/** The engine's best line from the position before `move`, when there is one worth showing. */
+export function bestLineFor(move: AnalyzedMove): string[] {
+  if (move.isBook || move.isCheckmate) return [];
+  return move.evalBefore.bestLineSan;
 }
