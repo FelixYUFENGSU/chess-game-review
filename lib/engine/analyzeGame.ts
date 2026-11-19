@@ -1,10 +1,10 @@
 import { Chess, type Square } from "chess.js";
 import { parsePgn } from "@/lib/chess/pgn";
-import { findOpening } from "@/lib/chess/openings";
+import { findOpening, openingByPly } from "@/lib/chess/openings";
 import { classifyMove } from "@/lib/chess/classify";
-import { explainMove } from "@/lib/chess/explain";
+import { coachMove, noteToText } from "@/lib/chess/explain";
 import { moveAccuracy, gameAccuracy, cpToWinPercent } from "@/lib/chess/winPercent";
-import { getSharedEngine, speedToEngineOptions } from "@/lib/engine/stockfish";
+import { gameTimeBudgetMs, getSharedEngine, speedToEngineOptions } from "@/lib/engine/stockfish";
 import {
   CLASSIFICATIONS,
   type AnalysisSpeed,
@@ -50,9 +50,17 @@ export async function* analyzeGame(
   const sanList = parsed.moves.map((m) => m.san);
   const openingResult = findOpening(sanList);
   const bookPlies = openingResult?.bookPlies ?? 0;
+  const openingsAtPly = openingByPly(sanList);
 
   const positionEvals: PositionEval[] = [];
   const totalPositions = parsed.fens.length;
+  // Spread a fixed time budget over the positions that actually need the engine.
+  const toAnalyze = Math.max(1, totalPositions - bookPlies);
+  const perPositionMs = Math.min(
+    engineOptions.movetimeMs,
+    Math.floor(gameTimeBudgetMs(speed) / toAnalyze)
+  );
+  const searchOptions = { ...engineOptions, movetimeMs: Math.max(250, perPositionMs) };
   for (let i = 0; i < totalPositions; i++) {
     // Positions fully inside known opening theory don't need the engine at all —
     // the move is classified "book" from the opening lookup alone, so spending
@@ -60,7 +68,7 @@ export async function* analyzeGame(
     // `bookPlies` itself is still evaluated: it's the first out-of-book position,
     // and doubles as evalBefore for the first move actually worth analyzing.
     const evalResult =
-      i < bookPlies ? bookPlaceholderEval(parsed.fens[i]) : await engine.evaluate(parsed.fens[i], engineOptions);
+      i < bookPlies ? bookPlaceholderEval(parsed.fens[i]) : await engine.evaluate(parsed.fens[i], searchOptions);
     positionEvals.push(evalResult);
     yield { type: "progress", ply: i, total: totalPositions - 1 };
   }
@@ -101,7 +109,9 @@ export async function* analyzeGame(
       classifyResult.winPercentBeforeMoverPov,
       classifyResult.winPercentAfterMoverPov
     );
-    perMoveAcc[move.color].push(accuracy);
+    // Book moves are never engine-checked (placeholder evals), so counting them
+    // as 100% would inflate accuracy. Only engine-judged moves count.
+    if (!isBook) perMoveAcc[move.color].push(accuracy);
     counts[move.color][classifyResult.classification]++;
 
     const whiteWinBefore = cpToWinPercent(evalBefore.cp, "w");
@@ -113,11 +123,16 @@ export async function* analyzeGame(
       classifyResult.classification === "miss" ||
       classifyResult.classification === "brilliant";
 
-    const explanation = explainMove({
+    const isOnlyMove = new Chess(move.fenBefore).moves().length === 1;
+    const leftBook = bookPlies > 0 && move.ply === bookPlies + 1;
+    const opening = openingsAtPly[i] ?? null;
+
+    const coach = coachMove({
       san: move.san,
       uci: move.uci,
       color: move.color,
       ply: move.ply,
+      moveNumber: move.moveNumber,
       classification: classifyResult.classification,
       isCapture: move.isCapture,
       isCheck: move.isCheck,
@@ -129,8 +144,11 @@ export async function* analyzeGame(
       evalAfter,
       isBook,
       isCriticalMoment,
-      openingName: isBook ? openingResult?.opening.name : undefined,
+      isOnlyMove,
+      leftBook,
+      opening,
     });
+    const explanation = noteToText(coach);
 
     const analyzed: AnalyzedMove = {
       ...move,
@@ -143,7 +161,11 @@ export async function* analyzeGame(
       winPercentLossMoverPov: classifyResult.winPercentLossMoverPov,
       isBook,
       isCriticalMoment,
+      isOnlyMove,
+      opening,
+      leftBook,
       explanation,
+      coach,
     };
 
     analyzedMoves.push(analyzed);

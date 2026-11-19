@@ -5,8 +5,9 @@ import type { AnalysisSpeed, AnalyzeStreamEvent } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Vercel Hobby's ceiling; bump this (Pro allows much more) if deploying there.
-export const maxDuration = 60;
+// Vercel's ceiling for Hobby with Fluid compute (the default); analysis stays inside
+// it via the per-game time budget in lib/engine/stockfish.ts.
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);

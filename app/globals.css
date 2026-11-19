@@ -1,15 +1,21 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Review palette: warm dark greys, green board, green call-to-action. */
+@theme {
+  --color-cg-bg: #302e2b;
+  --color-cg-panel: #262522;
+  --color-cg-panel2: #1f1e1b;
+  --color-cg-panel3: #3c3a37;
+  --color-cg-line: #3f3d39;
+  --color-cg-text: #ffffff;
+  --color-cg-muted: #bab9b8;
+  --color-cg-faint: #8b8987;
+  --color-cg-green: #81b64c;
+  --color-cg-green-hover: #a3d160;
+  --color-cg-green-shadow: #45753c;
+  --color-cg-board-light: #ebecd0;
+  --color-cg-board-dark: #739552;
+  --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 html {
@@ -17,4 +23,53 @@ html {
      (e.g. stepping through moves) never toggle the scrollbar and shift
      the whole page horizontally. */
   scrollbar-gutter: stable;
+}
+
+body {
+  background: var(--color-cg-bg);
+  color: var(--color-cg-text);
+}
+
+/* Big, chunky primary button. */
+.btn-primary {
+  @apply rounded-lg bg-cg-green px-5 py-3 text-base font-bold text-white transition-colors;
+  box-shadow: 0 4px 0 0 var(--color-cg-green-shadow);
+}
+.btn-primary:hover:not(:disabled) {
+  @apply bg-cg-green-hover;
+}
+.btn-primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 0 var(--color-cg-green-shadow);
+}
+.btn-primary:disabled {
+  @apply cursor-not-allowed opacity-40;
+}
+
+/* Thin, unobtrusive scrollbars inside panels. */
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #57544f transparent;
+}
+
+/* Coach speech bubble pointer. */
+.bubble {
+  position: relative;
+}
+.bubble::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 16px;
+  border-width: 7px 7px 7px 0;
+  border-style: solid;
+  border-color: transparent #ffffff transparent transparent;
+}
+
+@keyframes pop-in {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+.pop-in {
+  animation: pop-in 160ms ease-out;
 }

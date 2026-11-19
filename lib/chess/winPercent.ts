@@ -32,9 +32,17 @@ export function moveAccuracy(winPercentBefore: number, winPercentAfter: number):
   return Math.min(100, Math.max(0, raw));
 }
 
-/** Aggregate per-move accuracies into one game accuracy% (simple mean of per-move accuracy). */
+/**
+ * Aggregate per-move accuracies into one game accuracy%.
+ * Like Lichess, this averages the arithmetic mean with the harmonic mean: the
+ * harmonic mean is dominated by the worst moves, so a game with a few real
+ * mistakes can't hide behind many easy moves.
+ */
 export function gameAccuracy(perMoveAccuracies: number[]): number {
   if (perMoveAccuracies.length === 0) return 100;
-  const sum = perMoveAccuracies.reduce((a, b) => a + b, 0);
-  return Math.round((sum / perMoveAccuracies.length) * 10) / 10;
+  const n = perMoveAccuracies.length;
+  const mean = perMoveAccuracies.reduce((a, b) => a + b, 0) / n;
+  // Floor each value at 1 so a single 0% move doesn't make the harmonic mean 0.
+  const harmonic = n / perMoveAccuracies.reduce((a, b) => a + 1 / Math.max(1, b), 0);
+  return Math.round(((mean + harmonic) / 2) * 10) / 10;
 }

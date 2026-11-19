@@ -21,6 +21,25 @@ const THRESHOLDS = {
   // anything above `mistake` is a blunder
 };
 
+/**
+ * Centipawn-loss ceilings, applied alongside the win% thresholds while the game is
+ * still undecided. Win% flattens out once one side is ahead, so on win% alone a
+ * move that drops a full pawn at +3 can still look "excellent". A move gets the
+ * stricter of the two verdicts (cp alone never makes something a blunder).
+ */
+const CP_THRESHOLDS = {
+  excellent: 25,
+  good: 60,
+  inaccuracy: 150,
+};
+/** |eval| (cp) beyond which the game counts as decided and only win% applies. */
+const DECIDED_CP = 600;
+
+const SEVERITY: Classification[] = ["excellent", "good", "inaccuracy", "mistake", "blunder"];
+function stricter(a: Classification, b: Classification): Classification {
+  return SEVERITY.indexOf(a) >= SEVERITY.indexOf(b) ? a : b;
+}
+
 /** Minimum win% gap between the best and 2nd-best engine line to call a position "critical". */
 const GREAT_MOVE_GAP = 12;
 
@@ -89,8 +108,20 @@ export function classifyMove(input: ClassifyInput): ClassifyResult {
     return { classification: "best", ...base };
   }
 
-  if (winLoss <= THRESHOLDS.excellent) return { classification: "excellent", ...base };
-  if (winLoss <= THRESHOLDS.good) return { classification: "good", ...base };
+  const undecided =
+    evalBefore.mate == null && evalAfter.mate == null && Math.abs(evalBefore.cp) < DECIDED_CP;
+  const byCp: Classification = !undecided
+    ? "excellent"
+    : cpLoss <= CP_THRESHOLDS.excellent
+      ? "excellent"
+      : cpLoss <= CP_THRESHOLDS.good
+        ? "good"
+        : cpLoss <= CP_THRESHOLDS.inaccuracy
+          ? "inaccuracy"
+          : "mistake";
+
+  if (winLoss <= THRESHOLDS.excellent) return { classification: stricter("excellent", byCp), ...base };
+  if (winLoss <= THRESHOLDS.good) return { classification: stricter("good", byCp), ...base };
 
   // A "miss" is a mistake/blunder-sized win% drop from a position that was
   // clearly winning (or had a forced mate) for the mover — i.e. a missed win,
@@ -100,7 +131,7 @@ export function classifyMove(input: ClassifyInput): ClassifyResult {
     return { classification: "miss", ...base };
   }
 
-  if (winLoss <= THRESHOLDS.inaccuracy) return { classification: "inaccuracy", ...base };
+  if (winLoss <= THRESHOLDS.inaccuracy) return { classification: stricter("inaccuracy", byCp), ...base };
   if (winLoss <= THRESHOLDS.mistake) return { classification: "mistake", ...base };
   return { classification: "blunder", ...base };
 }

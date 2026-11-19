@@ -55,7 +55,7 @@ export function generateGameSummary(analysis: GameAnalysis): string {
       .sort((a, b) => b.winPercentLossMoverPov - a.winPercentLossMoverPov)[0];
     if (turningPoint && turningPoint.winPercentLossMoverPov > 5) {
       sentences.push(
-        `The critical turning point came with ${turningPoint.moveNumber}${turningPoint.color === "w" ? "." : "..."} ${turningPoint.san}: ${lowerFirst(turningPoint.explanation)}`
+        `The critical turning point came with ${turningPoint.moveNumber}${turningPoint.color === "w" ? "." : "..."} ${turningPoint.san}: ${lowerFirst(turningPoint.coach?.consequence ?? turningPoint.explanation)}`
       );
     } else if (keyMoments.length === 1) {
       sentences.push("There was one key moment that shaped the outcome.");
@@ -79,6 +79,8 @@ function fmtPct(n: number): string {
 }
 
 function lowerFirst(s: string): string {
+  // Never lowercase a move in algebraic notation (e.g. "Bxd1", "O-O").
+  if (/^([KQRBN][a-h1-8x]|O-O)/.test(s)) return s;
   return s.length > 0 ? s[0].toLowerCase() + s.slice(1) : s;
 }
 

@@ -20,7 +20,7 @@ username or game URL.
 ## How it works
 
 - **chess.js** parses PGN and drives move/position logic.
-- **Stockfish 18 (lite, single-threaded WASM)** runs server-side, inside the
+- **Stockfish 18 (full-strength NNUE, single-threaded WASM)** runs server-side, inside the
   Next.js Node process (`lib/engine/stockfish.ts`), analyzed via the `stockfish`
   npm package rather than a browser Web Worker — this avoids the COOP/COEP
   headers the multi-threaded build needs, while keeping analysis 100% local.
@@ -36,10 +36,19 @@ username or game URL.
   directionally consistent, not a byte-for-byte match. The Brilliant detector
   uses a simplified static-exchange evaluation (`lib/chess/tactics.ts`) to
   spot real sacrifices rather than ordinary trades.
-- **Explanations** (`lib/chess/explain.ts`) are generated with templated,
-  causal language (hanging pieces, forks, mating nets) derived from chess.js
-  board analysis of the engine's suggested reply — no LLM call, fully
-  deterministic and local.
+- **Coach notes** (`lib/chess/explain.ts`) break every move down into a
+  headline ("Nxe5 is a blunder"), the idea behind the move (development,
+  center control, castling, threats, trades), what it allows (hanging or
+  newly exposed pieces, forks, forced mates, leaving opening theory), the
+  engine's better move with its full line, and the evaluation change in plain
+  words. Generated from chess.js board analysis plus the engine's lines: no
+  LLM call, fully deterministic and local.
+- **Clickable engine lines**: every engine-checked move shows the best line from that
+  position; click any move in it (or use ← →) to see it on the board.
+- **Openings are tracked move by move** (`openingByPly` in
+  `lib/chess/openings.ts`), so the review always shows which named line the
+  game is in, whether each move is still "in theory", and the exact move that
+  left the book.
 - **Imports**: chess.com via the public `api.chess.com/pub/player/...`
   endpoint (by username) and a best-effort decode of chess.com's internal TCN
   move format for direct game URLs (via the `chess-tcn` package). Lichess via

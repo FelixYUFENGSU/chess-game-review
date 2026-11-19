@@ -24,7 +24,7 @@ export default function ImportPanel({ onSubmit, disabled }: ImportPanelProps) {
 
   return (
     <div className="mx-auto w-full max-w-xl">
-      <div className="mb-4 flex justify-center gap-1 rounded-md border border-neutral-700 bg-neutral-900 p-1">
+      <div className="mb-4 flex justify-center gap-1 rounded-lg bg-cg-panel2 p-1">
         <TabButton active={tab === "paste"} onClick={() => setTab("paste")}>
           Paste PGN
         </TabButton>
@@ -37,7 +37,7 @@ export default function ImportPanel({ onSubmit, disabled }: ImportPanelProps) {
       </div>
 
       <div className="mb-4 flex items-center justify-center gap-2 text-sm">
-        <span className="text-neutral-400">Analysis speed:</span>
+        <span className="text-cg-muted">Analysis:</span>
         <SpeedButton active={speed === "quick"} onClick={() => setSpeed("quick")}>
           Quick
         </SpeedButton>
@@ -51,15 +51,15 @@ export default function ImportPanel({ onSubmit, disabled }: ImportPanelProps) {
           <textarea
             value={pgn}
             onChange={(e) => setPgn(e.target.value)}
-            placeholder="Paste PGN here..."
+            placeholder="Paste a game in PGN format here…"
             rows={10}
-            className="w-full rounded-md border border-neutral-700 bg-neutral-900 p-3 font-mono text-xs text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none"
+            className="panel-scroll w-full rounded-lg border border-cg-line bg-cg-panel2 p-3 font-mono text-xs text-cg-text placeholder:text-cg-faint focus:border-cg-green focus:outline-none"
           />
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 pt-1">
             <button
               type="button"
               onClick={() => setPgn(SAMPLE_PGN)}
-              className="text-xs text-neutral-400 underline hover:text-neutral-200"
+              className="text-sm font-semibold text-cg-green hover:text-cg-green-hover"
             >
               Use a sample game
             </button>
@@ -67,7 +67,7 @@ export default function ImportPanel({ onSubmit, disabled }: ImportPanelProps) {
               type="button"
               disabled={disabled || !pgn.trim()}
               onClick={() => handlePgnResolved(pgn)}
-              className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-semibold text-neutral-900 disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-primary"
             >
               Review Game
             </button>
@@ -129,7 +129,7 @@ export default function ImportPanel({ onSubmit, disabled }: ImportPanelProps) {
         />
       )}
 
-      {error && <p className="mt-3 text-center text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-3 text-center text-sm text-red-300">{error}</p>}
     </div>
   );
 }
@@ -219,7 +219,7 @@ function RemoteImport({
   return (
     <div className="space-y-3">
       <div className="flex justify-center gap-4 text-xs">
-        <label className="flex items-center gap-1.5 text-neutral-400">
+        <label className="flex cursor-pointer items-center gap-1.5 text-cg-muted">
           <input
             type="radio"
             checked={mode === "username"}
@@ -227,7 +227,7 @@ function RemoteImport({
           />
           By username
         </label>
-        <label className="flex items-center gap-1.5 text-neutral-400">
+        <label className="flex cursor-pointer items-center gap-1.5 text-cg-muted">
           <input type="radio" checked={mode === "url"} onChange={() => setMode("url")} />
           By game URL
         </label>
@@ -240,13 +240,13 @@ function RemoteImport({
             onChange={(e) => setUsername(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleListGames()}
             placeholder="username"
-            className="flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none"
+            className="min-w-0 flex-1 rounded-lg border border-cg-line bg-cg-panel2 px-3 py-2 text-sm text-cg-text placeholder:text-cg-faint focus:border-cg-green focus:outline-none"
           />
           <button
             type="button"
             disabled={disabled || loading || !username.trim()}
             onClick={handleListGames}
-            className="rounded-md bg-neutral-100 px-3 py-2 text-sm font-semibold text-neutral-900 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-primary !px-4 !py-2 !text-sm"
           >
             {loading ? "Loading…" : "Find games"}
           </button>
@@ -259,35 +259,35 @@ function RemoteImport({
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleResolveUrl()}
               placeholder={urlPlaceholder}
-              className="flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none"
+              className="min-w-0 flex-1 rounded-lg border border-cg-line bg-cg-panel2 px-3 py-2 text-sm text-cg-text placeholder:text-cg-faint focus:border-cg-green focus:outline-none"
             />
             <button
               type="button"
               disabled={disabled || loading || !urlInput.trim()}
               onClick={handleResolveUrl}
-              className="rounded-md bg-neutral-100 px-3 py-2 text-sm font-semibold text-neutral-900 disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-primary !px-4 !py-2 !text-sm"
             >
               {loading ? "Loading…" : "Import"}
             </button>
           </div>
-          <p className="text-xs text-neutral-500">{urlHint}</p>
+          <p className="text-xs text-cg-faint">{urlHint}</p>
         </div>
       )}
 
-      {localError && <p className="text-center text-sm text-red-400">{localError}</p>}
+      {localError && <p className="text-center text-sm text-red-300">{localError}</p>}
 
       {games && games.length > 0 && (
-        <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-neutral-700 bg-neutral-900 p-1.5">
+        <div className="panel-scroll max-h-72 space-y-1 overflow-y-auto rounded-lg bg-cg-panel2 p-1.5">
           {games.map((g) => (
             <button
               key={g.id}
               type="button"
               disabled={disabled}
               onClick={() => onPgnResolved(g.pgn)}
-              className="block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-800"
+              className="block w-full rounded-md px-2.5 py-2 text-left text-sm hover:bg-cg-panel3"
             >
-              <p className="text-neutral-100">{g.title}</p>
-              <p className="text-xs text-neutral-500">{g.subtitle}</p>
+              <p className="font-semibold text-cg-text">{g.title}</p>
+              <p className="text-xs text-cg-faint">{g.subtitle}</p>
             </button>
           ))}
         </div>
@@ -309,8 +309,8 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-        active ? "bg-neutral-100 text-neutral-900" : "text-neutral-400 hover:text-neutral-200"
+      className={`flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+        active ? "bg-cg-panel3 text-white shadow" : "text-cg-muted hover:text-white"
       }`}
     >
       {children}
@@ -333,8 +333,8 @@ function SpeedButton({
       onClick={onClick}
       className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
         active
-          ? "border-neutral-100 bg-neutral-100 text-neutral-900"
-          : "border-neutral-700 text-neutral-400 hover:text-neutral-200"
+          ? "border-cg-green bg-cg-green/15 text-cg-green-hover"
+          : "border-cg-line text-cg-muted hover:text-white"
       }`}
     >
       {children}

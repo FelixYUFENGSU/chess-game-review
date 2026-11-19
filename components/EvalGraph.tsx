@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import type { GameAnalysis } from "@/lib/types";
+import { CLASSIFICATION_INFO } from "@/lib/types";
 import { cpToWhiteWinPercent } from "@/lib/chess/winPercent";
 
 interface EvalGraphProps {
@@ -10,7 +11,7 @@ interface EvalGraphProps {
   onSelectPly: (ply: number) => void;
 }
 
-const HEIGHT = 90;
+const HEIGHT = 60;
 
 export default function EvalGraph({ analysis, currentPly, onSelectPly }: EvalGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,7 +43,8 @@ export default function EvalGraph({ analysis, currentPly, onSelectPly }: EvalGra
   return (
     <div
       ref={containerRef}
-      className="relative w-full cursor-pointer select-none rounded-md border border-neutral-700 bg-neutral-900 px-0 py-0"
+      className="relative w-full cursor-pointer select-none overflow-hidden rounded-md bg-[#403d39]"
+      title="Evaluation over the game. Click to jump to a move."
       onClick={(e) => handlePointerEvent(e.clientX)}
       onMouseMove={(e) => {
         if (e.buttons === 1) handlePointerEvent(e.clientX);
@@ -51,11 +53,10 @@ export default function EvalGraph({ analysis, currentPly, onSelectPly }: EvalGra
       <svg
         viewBox={`0 0 100 ${HEIGHT}`}
         preserveAspectRatio="none"
-        className="block h-20 w-full sm:h-24"
+        className="block h-16 w-full"
       >
-        <line x1="0" y1={HEIGHT / 2} x2="100" y2={HEIGHT / 2} stroke="#525252" strokeWidth="0.5" />
-        <path d={areaPath} fill="#e5e5e5" opacity="0.9" />
-        <path d={linePath} fill="none" stroke="#171717" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+        <path d={areaPath} fill="#ffffff" />
+        <line x1="0" y1={HEIGHT / 2} x2="100" y2={HEIGHT / 2} stroke="#8b8987" strokeWidth="0.4" strokeDasharray="1 1" />
         {analysis.keyMoments.map((ply) => {
           const pt = points[ply];
           if (!pt) return null;
@@ -64,10 +65,10 @@ export default function EvalGraph({ analysis, currentPly, onSelectPly }: EvalGra
               key={ply}
               cx={pt.x}
               cy={pt.y}
-              r="1.6"
-              fill="#f59e0b"
-              stroke="#171717"
-              strokeWidth="0.4"
+              r="1.4"
+              fill={CLASSIFICATION_INFO[analysis.moves[ply - 1]?.classification ?? "blunder"].color}
+              stroke="#ffffff"
+              strokeWidth="0.35"
             />
           );
         })}
@@ -77,8 +78,8 @@ export default function EvalGraph({ analysis, currentPly, onSelectPly }: EvalGra
             y1="0"
             x2={currentPoint.x}
             y2={HEIGHT}
-            stroke="#3b82f6"
-            strokeWidth="0.8"
+            stroke="#81b64c"
+            strokeWidth="0.9"
           />
         )}
       </svg>
