@@ -1,10 +1,10 @@
 # Game Review
 
-A local, Stockfish-powered clone of chess.com's post-game "Game Review": paste a
-PGN or import from chess.com/Lichess and get move classifications, an accuracy
-score, an evaluation graph, and a plain-English explanation for every move.
-All analysis runs locally via a WASM build of Stockfish — no third-party
-analysis API.
+A local, Stockfish-powered game review in the style of chess.com's "Game Review":
+paste a PGN or import from chess.com/Lichess and get a coach-style breakdown of
+every move, the opening named as you go, the engine's best line to step through
+on the board, move classifications, and accuracy scores. All analysis runs on
+full-strength Stockfish 18 — no third-party analysis API.
 
 ## Getting started
 
@@ -31,18 +31,20 @@ username or game URL.
   (`scripts/build-openings.mjs` regenerates it from `scripts/opening-data/*.tsv`).
 - **Move classification** (`lib/chess/classify.ts`) and **accuracy**
   (`lib/chess/winPercent.ts`) use the win%-based approach Lichess documents
-  publicly for its own move annotations. Chess.com has never published its
-  exact formula, so these thresholds are a documented approximation —
-  directionally consistent, not a byte-for-byte match. The Brilliant detector
+  publicly for its own move annotations, tightened with centipawn-loss limits
+  so a move that drops material can't be called "excellent" in a close game.
+  Game accuracy averages the mean with the harmonic mean of per-move accuracy
+  (so real mistakes weigh more), and opening-book moves aren't counted.
+  Chess.com has never published its exact formula, so these thresholds are a
+  documented approximation, not a byte-for-byte match. The Brilliant detector
   uses a simplified static-exchange evaluation (`lib/chess/tactics.ts`) to
   spot real sacrifices rather than ordinary trades.
 - **Coach notes** (`lib/chess/explain.ts`) break every move down into a
   headline ("Nxe5 is a blunder"), the idea behind the move (development,
   center control, castling, threats, trades), what it allows (hanging or
   newly exposed pieces, forks, forced mates, leaving opening theory), the
-  engine's better move with its full line, and the evaluation change in plain
-  words. Generated from chess.js board analysis plus the engine's lines: no
-  LLM call, fully deterministic and local.
+  engine's better move with its full line. Generated from chess.js board
+  analysis plus the engine's lines: no LLM call, fully deterministic and local.
 - **Clickable engine lines**: every engine-checked move shows the best line from that
   position; click any move in it (or use ← →) to see it on the board.
 - **Openings are tracked move by move** (`openingByPly` in
@@ -68,5 +70,8 @@ username or game URL.
   stable public API and is the more robust path.
 - Lichess's `/api/games/user` endpoint is rate-limited fairly aggressively;
   repeated imports in quick succession may need a short cooldown.
+- Full-strength analysis takes time: roughly 1–1.5 minutes for a 40-move game
+  on Quick and up to 4 minutes on Deep (a per-game time budget keeps long games
+  within serverless limits).
 - The Brilliant/Great heuristics are approximations of chess.com's unpublished
   algorithm — expect close, not identical, results to chess.com's own review.
